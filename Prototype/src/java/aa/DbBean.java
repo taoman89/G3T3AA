@@ -27,7 +27,7 @@ public class DbBean implements Serializable{
 //    static String dbUser1 = null;
 //    static String dbPassword1 = null;
     
-    static String dbURLA = "jdbc:mysql://192.168.1.103:7000/exchange";
+    static String dbURLA = "jdbc:mysql://192.168.1.200:7000/exchange";
     static String dbUserA = "Exchange";
     static String dbPasswordA = "Exchange";
     
