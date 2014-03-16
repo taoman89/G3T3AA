@@ -4,6 +4,7 @@
  */
 package aa;
 
+import java.io.Serializable;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -17,7 +18,7 @@ import javax.naming.NamingException;
  *
  * @author danisg
  */
-public class DbBean {
+public class DbBean implements Serializable{
 
     // change the dbURL if necessary.
     private static String dbDriver = "com.mysql.jdbc.Driver";

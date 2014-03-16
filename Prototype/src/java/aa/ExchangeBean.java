@@ -6,7 +6,7 @@ import java.sql.SQLException;
 import java.util.*;
 import javax.naming.NamingException;
  
-public class ExchangeBean {
+public class ExchangeBean implements Serializable {
 
   // location of log files - change if necessary
   private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";

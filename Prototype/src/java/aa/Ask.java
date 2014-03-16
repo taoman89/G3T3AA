@@ -1,9 +1,10 @@
 package aa;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // represents an Ask (in a sell order)
-public class Ask {
+public class Ask  implements Serializable{
 
   private String stock;
   private int price; // ask price

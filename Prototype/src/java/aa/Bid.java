@@ -1,9 +1,10 @@
 package aa;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // represents a bid (in a buy order)
-public class Bid {
+public class Bid implements Serializable{
 
   private String stock;
   private int price; // bid price

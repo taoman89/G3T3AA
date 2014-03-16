@@ -23,4 +23,5 @@
         <env-entry-type>java.lang.String</env-entry-type>        
         <env-entry-value>Exchange</env-entry-value>
     </env-entry>
+    <distributable/>
 </web-app>

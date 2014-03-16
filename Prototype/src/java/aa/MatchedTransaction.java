@@ -1,9 +1,10 @@
 package aa;
 
+import java.io.Serializable;
 import java.util.Date;
 
 // represents a matched bid and ask
-public class MatchedTransaction {
+public class MatchedTransaction implements Serializable{
 
   private Bid bid;
   private Ask ask;
