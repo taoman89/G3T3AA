@@ -6,7 +6,7 @@
 
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <%@ page import="aa.*" %>
-<jsp:useBean id="exchangeBean" scope="application" class="aa.ExchangeBean" />
+<jsp:useBean id="exchangeBean" scope="application" class="aa.Mach1ExchangeBean" />
 
 <!DOCTYPE html>
 <html>
