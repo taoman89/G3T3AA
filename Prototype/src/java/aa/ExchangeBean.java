@@ -28,7 +28,7 @@ public class ExchangeBean implements Serializable {
   private int latestPriceForSmu = -1;
   private int latestPriceForNus = -1;
   private int latestPriceForNtu = -1;
-
+  
   // keeps track of the remaining credit limits of each buyer. This should be
   // checked every time a buy order is submitted. Buy orders that breach the
   // credit limit should be rejected and logged
@@ -85,7 +85,7 @@ public class ExchangeBean implements Serializable {
         // invoke the remote method by calling port.processTransaction().
         // processTransaction() will return false if the teamID &/or password is wrong
         // it will return true if the web service is correctly called
-        status = port.processTransaction("GxTy", "password", txnDescription);
+        status = port.processTransaction("G3T3", "garlic", txnDescription);
         return status;
       }
       catch (Exception ex) {
@@ -330,6 +330,7 @@ public class ExchangeBean implements Serializable {
 
       // to be included here: inform Back Office Server of match
       // to be done in v1.0
+      sendToBackOffice("stock: " + highestBid.getStock() + ", amt: " + highestBid.getPrice() + ", bidder userId: " + highestBid.getUserId() + ", seller userId: " + lowestAsk.getUserId() + ", date: " + new Date());
 
       updateLatestPrice(match);
       logMatchedTransactions();
@@ -374,6 +375,7 @@ public class ExchangeBean implements Serializable {
 
       // to be included here: inform Back Office Server of match
       // to be done in v1.0
+      sendToBackOffice("stock: " + highestBid.getStock() + ", amt: " + highestBid.getPrice() + ", bidder userId: " + highestBid.getUserId() + ", seller userId: " + lowestAsk.getUserId() + ", date: " + new Date());
 
       updateLatestPrice(match);
       logMatchedTransactions();
