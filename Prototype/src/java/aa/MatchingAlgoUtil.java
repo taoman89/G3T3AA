@@ -32,11 +32,21 @@ public class MatchingAlgoUtil {
             return unfulfilledAsks;
         }
         
-        Ask guessAsk = unfulfilledAsks.get(listSize/2);
+        for(int i = 0; i < unfulfilledAsks.size(); i ++){
+            
+            int currentAskPrice = unfulfilledAsks.get(i).getPrice();
+            if(currentAskPrice> ask.getPrice()){
+                unfulfilledAsks.add(i, ask);
+                
+                return unfulfilledAsks;
+            }
+        }
         
-      //  guess
         
-        return null;
+        unfulfilledAsks.add(ask);
+        return unfulfilledAsks;
     
     }
+    
+    
 }
