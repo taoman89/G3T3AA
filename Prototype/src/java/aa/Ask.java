@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 // represents an Ask (in a sell order)
-public class Ask  implements Serializable{
+public class Ask  implements Serializable, Comparable<Ask>{
 
   private String stock;
   private int price; // ask price
@@ -40,4 +40,15 @@ public class Ask  implements Serializable{
   public String toString() {
     return "stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
   }
+
+   public int compareTo(Ask other) {
+        
+        if(this.price != other.getPrice()){
+            return this.price - other.getPrice();
+        } else if (this.price == other.getPrice()){
+            return this.date.compareTo(other.getDate());
+        }
+        return 0;
+    }
+
 }

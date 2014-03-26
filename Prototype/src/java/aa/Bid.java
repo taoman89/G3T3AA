@@ -4,7 +4,7 @@ import java.io.Serializable;
 import java.util.Date;
 
 // represents a bid (in a buy order)
-public class Bid implements Serializable{
+public class Bid implements Serializable, Comparable<Bid>{
 
   private String stock;
   private int price; // bid price
@@ -40,4 +40,14 @@ public class Bid implements Serializable{
   public String toString() {
     return "stock: " + stock + ", price: " + price + ", userId: " + userId + ", date: " + date;
   }
+
+    public int compareTo(Bid other) {
+        
+        if(this.price != other.getPrice()){
+            return this.price - other.getPrice();
+        } else if (this.price == other.getPrice()){
+            return other.getDate().compareTo(this.date);
+        }
+        return 0;
+    }
 }
