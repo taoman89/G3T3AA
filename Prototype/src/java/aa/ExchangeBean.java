@@ -9,8 +9,9 @@ import javax.naming.NamingException;
 public class ExchangeBean implements Serializable {
 
   // location of log files - change if necessary
-  private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
-  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
+  private final String MATCH_LOG_FILE = "c:\\Users\\Tan Yao Guang\\matched.log";
+  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\Users\\Tan Yao Guang\\rejected.log";
+  private final String UNSENT_MATCH_LOG_FILE = "c:\\Users\\Tan Yao Guang\\unsent_matched.log";
 
   // used to calculate remaining credit available for buyers
   private final int DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
@@ -23,6 +24,7 @@ public class ExchangeBean implements Serializable {
   // used to keep track of all matched transactions (asks/bids) in the system
   // matchedTransactions is cleaned once the records are written to the log file successfully
   private ArrayList<MatchedTransaction> matchedTransactions = new ArrayList<MatchedTransaction>();
+  private ArrayList<MatchedTransaction> unsentTransactions = new ArrayList<MatchedTransaction>();
 
   // keeps track of the latest price for each of the 3 stocks
   private int latestPriceForSmu = -1;
@@ -49,6 +51,13 @@ public class ExchangeBean implements Serializable {
     // dump all unfulfilled buy and sell orders
     unfulfilledAsks.clear();
     unfulfilledBids.clear();
+    
+    // Send unsent transactions again
+    resendTransactions();
+    
+    if (!unsentTransactions.isEmpty()) {
+        logUnsentMatchedTransactions();
+    }
 
     // reset all credit limits of users
     //creditRemaining.clear();
@@ -264,6 +273,26 @@ public class ExchangeBean implements Serializable {
       e.printStackTrace();
     }
   }
+  
+  // Log to file for unsent transactions at end of day
+  private void logUnsentMatchedTransactions() {
+    try {
+      PrintWriter outFile = new PrintWriter(new FileWriter(UNSENT_MATCH_LOG_FILE, true));
+      for (MatchedTransaction m : unsentTransactions) {
+        outFile.append(m.toString() + "\n");
+      }
+      unsentTransactions.clear(); // clean this out
+      outFile.close();
+    } catch (IOException e) {
+      // Think about what should happen here...
+      System.out.println("IO EXCEPTIOn: Cannot write to file");
+      e.printStackTrace();
+    } catch (Exception e) {
+      // Think about what should happen here...
+      System.out.println("EXCEPTION: Cannot write to file");
+      e.printStackTrace();
+    }
+  }
 
   // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
   // this method is used by viewOrders.jsp for debugging purposes
@@ -330,13 +359,47 @@ public class ExchangeBean implements Serializable {
 
       // to be included here: inform Back Office Server of match
       // to be done in v1.0
-      sendToBackOffice("stock: " + highestBid.getStock() + ", amt: " + highestBid.getPrice() + ", bidder userId: " + highestBid.getUserId() + ", seller userId: " + lowestAsk.getUserId() + ", date: " + new Date());
-
+      
+      // Send all existing unsent transactions first
+      resendTransactions();
+      
+      // Try sending this current matched transaction
+      try {
+          boolean status = sendTransaction(match);
+      } catch (Exception e) {
+          unsentTransactions.add(match);
+      }
+      
       updateLatestPrice(match);
       logMatchedTransactions();
     }
 
     return true; // this bid is acknowledged
+  }
+  
+  // Send all accumulated unsent transactions
+  private void resendTransactions() {
+      ArrayList<MatchedTransaction> unsentAgain = new ArrayList<MatchedTransaction>();
+      
+      // Loop through all unsent transactions
+      for (int i = 0; i < unsentTransactions.size(); i++) {
+          MatchedTransaction m = unsentTransactions.get(i);
+          
+          // Try sending again
+          try {
+              boolean status = sendTransaction(m);
+          } catch (Exception e) {
+              unsentAgain.add(m);
+          }
+      }
+      
+      // Overwrite existing unsent transactions with any unsent transactions
+      unsentTransactions = unsentAgain;
+  }
+  
+  private boolean sendTransaction(MatchedTransaction match) throws IOException {
+      boolean status = sendToBackOffice("stock: " + match.getStock() + ", amt: " + match.getPrice() + ", bidder userId: " + match.getBuyerId() + ", seller userId: " + match.getSellerId() + ", date: " + match.getDate());
+      return status;
   }
 
   // call this method immediatley when a new ask (selling order) comes in
@@ -375,8 +438,16 @@ public class ExchangeBean implements Serializable {
 
       // to be included here: inform Back Office Server of match
       // to be done in v1.0
-      sendToBackOffice("stock: " + highestBid.getStock() + ", amt: " + highestBid.getPrice() + ", bidder userId: " + highestBid.getUserId() + ", seller userId: " + lowestAsk.getUserId() + ", date: " + new Date());
-
+      // Send all existing unsent transactions first
+      resendTransactions();
+      
+      // Try sending this current matched transaction
+      try {
+          boolean status = sendTransaction(match);
+      } catch (Exception e) {
+          unsentTransactions.add(match);
+      }
+      
       updateLatestPrice(match);
       logMatchedTransactions();
     }
