@@ -341,7 +341,7 @@ public class Mach1ExchangeBean implements Serializable {
   // call this method immediatley when a new ask (selling order) comes in
   public void placeNewAskAndAttemptMatch(Ask newAsk) {
     // step 1: insert new ask into unfulfilledAsks
-    unfulfilledAsks.add(newAsk);
+    unfulfilledAsks = MatchingAlgoUtil.addNewAsk(unfulfilledAsks, newAsk);
 
     // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
     // count keeps track of the number of unfulfilled bids for this stock
