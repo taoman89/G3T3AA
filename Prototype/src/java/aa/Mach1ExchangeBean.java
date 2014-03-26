@@ -296,43 +296,38 @@ public class Mach1ExchangeBean implements Serializable {
     if (!okToContinue){
       return false; 
     }
+    
+    String stockName = newBid.getStock();
+    // try to match
 
-    // step 1: insert new bid into unfulfilledBids
-    unfulfilledBids.add(newBid);
-
-    // step 2: check if there is any unfulfilled asks (sell orders) for the new bid's stock. if not, just return
-    // count keeps track of the number of unfulfilled asks for this stock
-    int count = 0;
-    for (int i = 0; i < unfulfilledAsks.size(); i++) {
-      if (unfulfilledAsks.get(i).getStock().equals(newBid.getStock())) {
-        count++;
-      }
+    Ask bestAsk = null;
+    int bestAskPosition = -1;
+    for(int i = 0; i < unfulfilledAsks.size(); i ++){
+        Ask currentAsk = unfulfilledAsks.get(i);
+        if(stockName.equals(currentAsk.getStock())){
+            bestAsk = currentAsk;
+            bestAskPosition = i;
+            break;
+        }
     }
-    if (count == 0) {
-      return true; // no unfulfilled asks of the same stock
-    }
 
-    // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-    Bid highestBid = getHighestBid(newBid.getStock());
-
-    // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-    Ask lowestAsk = getLowestAsk(newBid.getStock());
-
-    // step 5: check if there is a match.
     // A match happens if the highest bid is bigger or equal to the lowest ask
-    if (highestBid.getPrice() >= lowestAsk.getPrice()) {
-      // a match is found!
-      unfulfilledBids.remove(highestBid);
-      unfulfilledAsks.remove(lowestAsk);
-      // this is a BUYING trade - the transaction happens at the higest bid's timestamp, and the transaction price happens at the lowest ask
-      MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, highestBid.getDate(), lowestAsk.getPrice());
-      matchedTransactions.add(match);
+    if (bestAskPosition!= -1 && newBid.getPrice() >= bestAsk.getPrice()) {
+        MatchedTransaction match = new MatchedTransaction(newBid, bestAsk, newBid.getDate(), bestAsk.getPrice());
+        //remove best ask 
+        unfulfilledAsks.remove(bestAskPosition);
+        matchedTransactions.add(match);
 
-      // to be included here: inform Back Office Server of match
-      // to be done in v1.0
+        // to be included here: inform Back Office Server of match
+        // to be done in v1.0
 
-      updateLatestPrice(match);
-      logMatchedTransactions();
+        updateLatestPrice(match);
+        logMatchedTransactions();
+    }
+
+    //if cant match, add bid to unfulfilled bids
+    else{
+        unfulfilledBids = MatchingAlgoUtil.addNewBid(unfulfilledBids, newBid);
     }
 
     return true; // this bid is acknowledged
@@ -340,44 +335,37 @@ public class Mach1ExchangeBean implements Serializable {
 
   // call this method immediatley when a new ask (selling order) comes in
   public void placeNewAskAndAttemptMatch(Ask newAsk) {
-    // step 1: insert new ask into unfulfilledAsks
-    unfulfilledAsks = MatchingAlgoUtil.addNewAsk(unfulfilledAsks, newAsk);
-
-    // step 2: check if there is any unfulfilled bids (buy orders) for the new ask's stock. if not, just return
-    // count keeps track of the number of unfulfilled bids for this stock
-    int count = 0;
-    for (int i = 0; i < unfulfilledBids.size(); i++) {
-      if (unfulfilledBids.get(i).getStock().equals(newAsk.getStock())) {
-        count++;
-      }
+    String stockName = newAsk.getStock();
+    // try to match
+    Bid bestBid = null;
+    int bestBidPosition = -1;
+    for(int i = unfulfilledBids.size()-1; i >=0 ; i --){
+        Bid currentBid = unfulfilledBids.get(i);
+        if(stockName.equals(currentBid.getStock())){
+            bestBid = currentBid;
+            bestBidPosition=i;
+            break;
+        }
     }
-    if (count == 0) {
-      return; // no unfulfilled asks of the same stock
+    
+    if (bestBidPosition!= -1 && bestBid.getPrice() >= newAsk.getPrice()) {
+        MatchedTransaction match = new MatchedTransaction(bestBid, newAsk, newAsk.getDate(), bestBid.getPrice());
+        //remove best ask 
+        unfulfilledBids.remove(bestBidPosition);
+        matchedTransactions.add(match);
+
+        // to be included here: inform Back Office Server of match
+        // to be done in v1.0
+
+        updateLatestPrice(match);
+        logMatchedTransactions();
     }
 
-    // step 3: identify the current/highest bid in unfulfilledBids of the same stock
-    Bid highestBid = getHighestBid(newAsk.getStock());
-
-    // step 4: identify the current/lowest ask in unfulfilledAsks of the same stock
-    Ask lowestAsk = getLowestAsk(newAsk.getStock());
-
-
-    // step 5: check if there is a match.
-    // A match happens if the lowest ask is <= highest bid
-    if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-      // a match is found!
-      unfulfilledBids.remove(highestBid);
-      unfulfilledAsks.remove(lowestAsk);
-      // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-      MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-      matchedTransactions.add(match);
-
-      // to be included here: inform Back Office Server of match
-      // to be done in v1.0
-
-      updateLatestPrice(match);
-      logMatchedTransactions();
+    //if cant match, add bid to unfulfilled asks
+    else{
+        unfulfilledAsks = MatchingAlgoUtil.addNewAsk(unfulfilledAsks, newAsk);
     }
+
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
