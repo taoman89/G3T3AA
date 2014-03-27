@@ -25,7 +25,7 @@ and open the template in the editor.
                        $('#errorMsg').hide();
                        $('#serverIP').html('');
                        for(var i = 0 ; i < $('#noOfServers').val(); i ++){
-                           ipAdd = '192.168.1.'+ (i+1);
+                           ipAdd = 'http://192.168.1.'+ (i+1)+':8081';
                            serverIP.push(ipAdd);
                            $('#serverIP').append('Server IP : ' + ipAdd + '<br/>')
                        }
@@ -33,7 +33,7 @@ and open the template in the editor.
   
                 });
                 
-                $('#noOfChunks').on('keyup', function(){
+                $('#noOfChunks').on('change', function(){
                    if(!$.isNumeric( $('#noOfChunks').val())){
                        $('#errorMsg').show(); 
                        $('#mainContainer').html('');
@@ -53,11 +53,44 @@ and open the template in the editor.
                    
                    
                 });
+                
+                $('#startExp').click(function(){
+                    var counter =0;
+                    for(var i =0; i < noOfChunks; i ++){
+                        if(counter===serverIP.length){
+                            counter = 0;
+                        }
+//                        $.ajax( serverIP[counter] + '/Prototype/staticpages/'+ noOfChunks +'Pages/static4_' + i + '.html' ).done(function(response){
+//                            $('#part'+(i+1)).html(response);
+//                        });
+                        console.log(serverIP[0]);
+                        $.ajax({
+                            type: 'GET',
+                            url: serverIP[counter] + '/Prototype/staticpages/'+ noOfChunks +'Pages/static4_' + i + '.html',
+                            success: function(response) {
+                                $('#part'+(i+1)).html(response);
+                            }
+                          });
+                        counter++;
+                        
+                    }                    
+                });
             });
         </script>
         <div id ='errorMsg'>Enter Numbers PLEASE!</div> 
         Number of Servers : <input id = 'noOfServers' type ='text'/> <br/>
-        How Many Chunks ? : <input id = 'noOfChunks' type ='text' value=25 /> <br/>
+        How Many Chunks ? : 
+        <select id = "noOfChunks">
+            <option value=""></option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="250">250</option>
+            <option value="500">500</option>
+          </select>
+        <br/>
         
         <button id ="startExp"> Start Experiment </button>
         
@@ -69,14 +102,7 @@ and open the template in the editor.
             
         </div>
 
-             
-        <script type = 'text/javascript'>
-            $(document).ready(function(){
-               $.ajax( "static4_0.html" ).done(function(response){
-                    $('#part1').html(response);
-                })
-            });
-        </script>
+
         
     </body>
 </html>
