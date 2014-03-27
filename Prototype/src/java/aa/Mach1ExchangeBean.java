@@ -4,16 +4,29 @@ import java.io.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import javax.naming.NamingException;
  
 public class Mach1ExchangeBean implements Serializable {
 
   // location of log files - change if necessary
-  private final String MATCH_LOG_FILE = "c:\\temp\\matched.log";
-  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\temp\\rejected.log";
+  private final String MATCH_LOG_FILE = "c:\\matched.log";
+  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\rejected.log";
+  private final String UNSENT_MATCH_LOG_FILE = "c:\\unsent_matched.log";
 
   // used to calculate remaining credit available for buyers
   private final int DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+  
+  // timeout value
+  private final int TIME_OUT = 3;
 
   // used for keeping track of unfulfilled asks and bids in the system.
   // once asks or bids are matched, they must be removed from these arraylists.
@@ -23,11 +36,15 @@ public class Mach1ExchangeBean implements Serializable {
   // used to keep track of all matched transactions (asks/bids) in the system
   // matchedTransactions is cleaned once the records are written to the log file successfully
   private ArrayList<MatchedTransaction> matchedTransactions = new ArrayList<MatchedTransaction>();
+  private ArrayList<MatchedTransaction> unsentTransactions = new ArrayList<MatchedTransaction>();
 
   // keeps track of the latest price for each of the 3 stocks
   private int latestPriceForSmu = -1;
   private int latestPriceForNus = -1;
   private int latestPriceForNtu = -1;
+  
+  // Declare Fair Policy Lock
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
   // keeps track of the remaining credit limits of each buyer. This should be
   // checked every time a buy order is submitted. Buy orders that breach the
@@ -41,25 +58,44 @@ public class Mach1ExchangeBean implements Serializable {
   // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
   // this is a good chance to "clean up" everything to get ready for the next trading day
   public void endTradingDay() throws Exception{
-    // reset attributes
-    latestPriceForSmu = -1;
-    latestPriceForNus = -1;
-    latestPriceForNtu = -1;
+    WriteLock writeLock = lock.writeLock();
+    
+    try {
+        writeLock.lock();
+        
 
-    // dump all unfulfilled buy and sell orders
-    unfulfilledAsks.clear();
-    unfulfilledBids.clear();
+        // reset attributes
+        latestPriceForSmu = -1;
+        latestPriceForNus = -1;
+        latestPriceForNtu = -1;
 
-    // reset all credit limits of users
-    //creditRemaining.clear();
-    // Reset the credit in database #SD#.
-    DbBean.executeUpdate("delete from credit");
+        // dump all unfulfilled buy and sell orders
+        unfulfilledAsks.clear();
+        unfulfilledBids.clear();
+        
+        // Send unsent transactions again
+        resendTransactions();
+
+        if (!unsentTransactions.isEmpty()) {
+            logUnsentMatchedTransactions();
+        }
+
+        // reset all credit limits of users
+        //creditRemaining.clear();
+        // Reset the credit in database #SD#.
+        DbBean.executeUpdate("delete from credit");
+    } finally {
+        writeLock.unlock();
+    }
   }
-
+  
   // returns a String of unfulfilled bids for a particular stock
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     String returnString = "";
     for (int i = 0; i < unfulfilledBids.size(); i++) {
       Bid bid = unfulfilledBids.get(i);
@@ -67,6 +103,7 @@ public class Mach1ExchangeBean implements Serializable {
         returnString += bid.toString() + "<br />";
       }
     }
+    readLock.unlock();
     return returnString;
   }
 
@@ -85,7 +122,7 @@ public class Mach1ExchangeBean implements Serializable {
         // invoke the remote method by calling port.processTransaction().
         // processTransaction() will return false if the teamID &/or password is wrong
         // it will return true if the web service is correctly called
-        status = port.processTransaction("GxTy", "password", txnDescription);
+        status = port.processTransaction("G3T3", "garlic", txnDescription);
         return status;
       }
       catch (Exception ex) {
@@ -97,6 +134,9 @@ public class Mach1ExchangeBean implements Serializable {
 
     
   public String getUnfulfilledAsks(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     String returnString = "";
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
       Ask ask = unfulfilledAsks.get(i);
@@ -104,6 +144,7 @@ public class Mach1ExchangeBean implements Serializable {
         returnString += ask.toString() + "<br />";
       }
     }
+    readLock.unlock();
     return returnString;
   }
 
@@ -121,6 +162,9 @@ public class Mach1ExchangeBean implements Serializable {
   // retrieve unfulfiled current (highest) bid for a particular stock
   // returns null if there is no unfulfiled bid for this stock
   private Bid getHighestBid(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     Bid highestBid = new Bid(null, 0, null);
     for (int i = 0; i < unfulfilledBids.size(); i++) {
       Bid bid = unfulfilledBids.get(i);
@@ -139,6 +183,7 @@ public class Mach1ExchangeBean implements Serializable {
     if (highestBid.getUserId() == null) {
       return null; // there's no unfulfilled bid at all!
     }
+    readLock.unlock();
     return highestBid;
   }
 
@@ -156,6 +201,9 @@ public class Mach1ExchangeBean implements Serializable {
   // retrieve unfulfiled current (lowest) ask for a particular stock
   // returns null if there is no unfulfiled asks for this stock
   private Ask getLowestAsk(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     Ask lowestAsk = new Ask(null, Integer.MAX_VALUE, null);
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
       Ask ask = unfulfilledAsks.get(i);
@@ -174,6 +222,7 @@ public class Mach1ExchangeBean implements Serializable {
     if (lowestAsk.getUserId() == null) {
       return null; // there's no unfulfilled asks at all!
     }
+    readLock.unlock();
     return lowestAsk;
   }
 
@@ -247,6 +296,9 @@ public class Mach1ExchangeBean implements Serializable {
 
   // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
   private void logMatchedTransactions() {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+    
     try {
       PrintWriter outFile = new PrintWriter(new FileWriter(MATCH_LOG_FILE, true));
       for (MatchedTransaction m : matchedTransactions) {
@@ -262,6 +314,33 @@ public class Mach1ExchangeBean implements Serializable {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
+    } finally {
+        writeLock.unlock();
+    }
+  }
+  
+  // Log to file for unsent transactions at end of day
+  private void logUnsentMatchedTransactions() {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+      
+    try {
+      PrintWriter outFile = new PrintWriter(new FileWriter(UNSENT_MATCH_LOG_FILE, false));
+      for (MatchedTransaction m : unsentTransactions) {
+        outFile.append(m.toString() + "\n");
+      }
+      unsentTransactions.clear(); // clean this out
+      outFile.close();
+    } catch (IOException e) {
+      // Think about what should happen here...
+      System.out.println("IO EXCEPTIOn: Cannot write to file");
+      e.printStackTrace();
+    } catch (Exception e) {
+      // Think about what should happen here...
+      System.out.println("EXCEPTION: Cannot write to file");
+      e.printStackTrace();
+    } finally {
+        writeLock.unlock();
     }
   }
 
@@ -297,6 +376,10 @@ public class Mach1ExchangeBean implements Serializable {
       return false; 
     }
     
+    WriteLock writeLock = lock.writeLock();
+    
+    writeLock.lock();
+    
     String stockName = newBid.getStock();
     // try to match
 
@@ -320,6 +403,19 @@ public class Mach1ExchangeBean implements Serializable {
 
         // to be included here: inform Back Office Server of match
         // to be done in v1.0
+        
+        // Try sending this current matched transaction
+        boolean status = false;
+
+        try {
+            status = sendTransaction(match);
+        } catch (Exception e) {
+
+        }
+
+        if (!status) {
+            unsentTransactions.add(match);
+        }
 
         updateLatestPrice(match);
         logMatchedTransactions();
@@ -329,12 +425,75 @@ public class Mach1ExchangeBean implements Serializable {
     else{
         unfulfilledBids = MatchingAlgoUtil.addNewBid(unfulfilledBids, newBid);
     }
-
+    writeLock.unlock();
     return true; // this bid is acknowledged
+  }
+  
+  // Send all accumulated unsent transactions
+  private void resendTransactions() {
+      WriteLock writeLock = lock.writeLock();
+      writeLock.lock();
+      
+      ArrayList<MatchedTransaction> unsentAgain = new ArrayList<MatchedTransaction>();
+      
+      // Loop through all unsent transactions
+      for (int i = 0; i < unsentTransactions.size(); i++) {
+          MatchedTransaction m = unsentTransactions.get(i);
+          
+          boolean status = false;
+          
+          // Try sending again
+          try {
+              status = sendTransaction(m);
+          } catch (Exception e) {
+              
+          }
+          
+          if (!status) {
+              unsentAgain.add(m);
+          }
+      }
+      
+      // Overwrite existing unsent transactions with any unsent transactions
+      unsentTransactions = unsentAgain;
+      
+      writeLock.unlock();
+  }
+  
+  private boolean sendTransaction(final MatchedTransaction match) throws IOException {
+      ExecutorService service = Executors.newSingleThreadExecutor();
+      
+      try {
+          Runnable r = new Runnable() {
+              @Override
+              public void run() {
+                  sendToBackOffice("stock: " + match.getStock()
+                    + ", amt: " + match.getPrice() + ", bidder userId: " + match.getBuyerId()
+                    + ", seller userId: " + match.getSellerId() + ", date: " + match.getDate());
+              }
+          };
+          
+          Future<?> f = service.submit(r);
+          
+          f.get(TIME_OUT, TimeUnit.SECONDS);  // attempt the task for three seconds
+          
+      } catch (InterruptedException e) {
+          return false;
+      } catch (TimeoutException e) {
+          return false;
+      } catch (ExecutionException e) {
+          return false;
+      }
+      
+      return true;
   }
 
   // call this method immediatley when a new ask (selling order) comes in
   public void placeNewAskAndAttemptMatch(Ask newAsk) {
+    WriteLock writeLock = lock.writeLock();
+
+    writeLock.lock();
+    
     String stockName = newAsk.getStock();
     // try to match
     Bid bestBid = null;
@@ -356,6 +515,19 @@ public class Mach1ExchangeBean implements Serializable {
 
         // to be included here: inform Back Office Server of match
         // to be done in v1.0
+        
+        // Try sending this current matched transaction
+        boolean status = false;
+
+        try {
+            status = sendTransaction(match);
+        } catch (Exception e) {
+
+        }
+
+        if (!status) {
+            unsentTransactions.add(match);
+        }
 
         updateLatestPrice(match);
         logMatchedTransactions();
@@ -366,11 +538,15 @@ public class Mach1ExchangeBean implements Serializable {
         unfulfilledAsks = MatchingAlgoUtil.addNewAsk(unfulfilledAsks, newAsk);
     }
 
+    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   private void updateLatestPrice(MatchedTransaction m) {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+    
     String stock = m.getStock();
     int price = m.getPrice();
     // update the correct attribute
@@ -381,11 +557,15 @@ public class Mach1ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       latestPriceForNtu = price;
     }
+    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   public int getLatestPrice(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     if (stock.equals("smu")) {
       return latestPriceForSmu;
     } else if (stock.equals("nus")) {
@@ -393,6 +573,7 @@ public class Mach1ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       return latestPriceForNtu;
     }
+    readLock.unlock();
     return -1; // no such stock
   }
   
