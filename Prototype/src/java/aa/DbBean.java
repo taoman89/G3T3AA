@@ -35,13 +35,13 @@ public class DbBean implements Serializable{
     
     private final static int TIME_OUT = 3;
     
-    static String dbURLA = "jdbc:mysql://192.168.1.147:7000/exchange";
+    static String dbURLA = "jdbc:mysql://192.168.1.200:7000/exchange";
     static String dbUserA = "Exchange";
     static String dbPasswordA = "Exchange";
     
-    static String dbURLB = "jdbc:mysql://localhost:3306/exchange";
-    static String dbUserB = "root";
-    static String dbPasswordB = "";
+    static String dbURLB = "jdbc:mysql://192.168.1.230:7000/exchange";
+    static String dbUserB = "Exchange";
+    static String dbPasswordB = "Exchange";
     
     //Read JDBC parameters from web.xml
     
