@@ -6,13 +6,14 @@
 
 package aa;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 
 /**
  *
  * @author Juntao
  */
-public class MatchingAlgoUtil {
+public class MatchingAlgoUtil implements Serializable {
     public static ArrayList<Ask> addNewAsk(ArrayList<Ask> unfulfilledAsks, Ask ask){
         //adding new ask using binary search (for a sorted list)
         //ArrayList<Ask> returnedList = unfulfilledAsks;
