@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <script src ='jquery-1.11.0.min.js' type = 'text/javascript'></script>
+    </head>
+    <body>
+        <script type = 'text/javascript'>
+            $(document).ready(function(){
+                var  serverIP = new Array(); 
+                var pagesDir = '';
+                var noOfChunks = 0;
+                $('#errorMsg').hide();
+                
+                $('#noOfServers').on('keyup', function(){
+                   if(!$.isNumeric( $('#noOfServers').val())){
+                       $('#errorMsg').show(); 
+                       $('#serverIP').html('');
+                   }
+                   else{
+                       $('#errorMsg').hide();
+                       $('#serverIP').html('');
+                       for(var i = 0 ; i < $('#noOfServers').val(); i ++){
+                           ipAdd = '192.168.1.'+ (i+1);
+                           serverIP.push(ipAdd);
+                           $('#serverIP').append('Server IP : ' + ipAdd + '<br/>')
+                       }
+                   }
+  
+                });
+                
+                $('#noOfChunks').on('keyup', function(){
+                   if(!$.isNumeric( $('#noOfChunks').val())){
+                       $('#errorMsg').show(); 
+                       $('#mainContainer').html('');
+                   }
+                   else{
+                       $('#errorMsg').hide();
+                       $('#mainContainer').html('');
+                       for(var i = 0 ; i < $('#noOfChunks').val(); i ++){
+            
+                           $('#mainContainer').append('Part '+ (i+1) + ' div <br/>');
+                           $('#mainContainer').append ('<div id="part'+(i+1)+'"></div>');
+                       }
+                       pagesDir=  $('#noOfChunks').val()+'Pages/';
+                       noOfChunks = $('#noOfChunks').val();
+                       
+                   }
+                   
+                   
+                });
+            });
+        </script>
+        <div id ='errorMsg'>Enter Numbers PLEASE!</div> 
+        Number of Servers : <input id = 'noOfServers' type ='text'/> <br/>
+        How Many Chunks ? : <input id = 'noOfChunks' type ='text' value=25 /> <br/>
+        
+        <button id ="startExp"> Start Experiment </button>
+        
+        <div id ='serverIP'>
+            
+        </div>
+        
+        <div id='mainContainer'>
+            
+        </div>
+
+             
+        <script type = 'text/javascript'>
+            $(document).ready(function(){
+               $.ajax( "static4_0.html" ).done(function(response){
+                    $('#part1').html(response);
+                })
+            });
+        </script>
+        
+    </body>
+</html>
