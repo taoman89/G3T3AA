@@ -10,29 +10,14 @@ and open the template in the editor.
     </head>
     <body>
         <script type = 'text/javascript'>
+            var startTime = 
             $(document).ready(function(){
                 var  serverIP = new Array(); 
-                serverIP.push( 'http://192.168.1.210:8080')
+                serverIP.push( 'http://192.168.1.210:8080/Prototype/staticpages/')
                 var pagesDir = '';
                 var noOfChunks = 0;
                 $('#errorMsg').hide();
                 
-                $('#noOfServers').on('keyup', function(){
-                   if(!$.isNumeric( $('#noOfServers').val())){
-                       $('#errorMsg').show(); 
-                       $('#serverIP').html('');
-                   }
-                   else{
-                       $('#errorMsg').hide();
-                       $('#serverIP').html('');
-                       for(var i = 0 ; i < $('#noOfServers').val(); i ++){
-                           ipAdd = 'http://192.168.1.'+ (i+1)+':8081';
-                           //serverIP.push(ipAdd);
-                           $('#serverIP').append('Server IP : ' + ipAdd + '<br/>')
-                       }
-                   }
-  
-                });
                 
                 $('#noOfChunks').on('change', function(){
                    if(!$.isNumeric( $('#noOfChunks').val())){
@@ -42,44 +27,34 @@ and open the template in the editor.
                    else{
                        $('#errorMsg').hide();
                        $('#mainContainer').html('');
+                       noOfChunks = $('#noOfChunks').val();
                        for(var i = 0 ; i < $('#noOfChunks').val(); i ++){
             
                            $('#mainContainer').append('Part '+ (i+1) + ' div <br/>');
                            $('#mainContainer').append ('<div id="part'+(i+1)+'"></div>');
+                           var url = serverIP[0]+ noOfChunks +'Pages/static4_' + i + '.html';
+                           var idNo = "#part"+(i+1);
+                           $('#part'+(i+1)).append('<script>$("#startExp").click(function(){$.ajax("'+url+'").done(function(response){$("'+idNo+'").append(response); $("#endTimes").append((new Date()).getTime()+" , ")}); });</script\>');
+
                        }
+                       $("#startExp").click(function(){$.ajax().done(function(response){}) });
                        pagesDir=  $('#noOfChunks').val()+'Pages/';
-                       noOfChunks = $('#noOfChunks').val();
+                       
                        
                    }
+                   
                    
                    
                 });
                 
                 $('#startExp').click(function(){
-                    var counter =0;
-                    for(var i =0; i < noOfChunks; i ++){
-                        if(counter===serverIP.length){
-                            counter = 0;
-                        }
-//                        $.ajax( serverIP[counter] + '/Prototype/staticpages/'+ noOfChunks +'Pages/static4_' + i + '.html' ).done(function(response){
-//                            $('#part'+(i+1)).html(response);
-//                        });
-                        console.log(serverIP[0]);
-                        $.ajax({
-                            type: 'GET',
-                            url: serverIP[counter] + '/Prototype/staticpages/'+ noOfChunks +'Pages/static4_' + i + '.html',
-                            success: function(response) {
-                                $('#part'+(i+1)).html(response);
-                            }
-                          });
-                        counter++;
-                        
-                    }                    
+                    startTime = (new Date()).getTime();
+                    $('#startTime').append(startTime);
                 });
             });
         </script>
-        <div id ='errorMsg'>Enter Numbers PLEASE!</div> 
-        Number of Servers : <input id = 'noOfServers' type ='text'/> <br/>
+        Start Time (ms) : <span id = 'startTime'></span> <br/>
+        Ending Times : <span id ='endTimes'></span> <br/>
         How Many Chunks ? : 
         <select id = "noOfChunks">
             <option value=""></option>
