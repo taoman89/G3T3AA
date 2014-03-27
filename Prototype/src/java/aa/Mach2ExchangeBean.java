@@ -58,10 +58,10 @@ public class Mach2ExchangeBean implements Serializable {
   // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
   // this is a good chance to "clean up" everything to get ready for the next trading day
   public void endTradingDay() throws Exception{
-    WriteLock writeLock = lock.writeLock();
-    
-    try {
-        writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//    
+//    try {
+//        writeLock.lock();
 
         // reset attributes
         latestPriceForSmu = -1;
@@ -83,17 +83,17 @@ public class Mach2ExchangeBean implements Serializable {
         //creditRemaining.clear();
         // Reset the credit in database #SD#.
         DbBean.executeUpdate("delete from credit");
-    } finally {
-        writeLock.unlock();
-    }
+//    } finally {
+//        writeLock.unlock();
+//    }
   }
 
   // returns a String of unfulfilled bids for a particular stock
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
-    ReadLock readLock = lock.readLock();
-    readLock.lock();
+//    ReadLock readLock = lock.readLock();
+//    readLock.lock();
     
     String returnString = "";
     for (int i = 0; i < unfulfilledBids.size(); i++) {
@@ -102,7 +102,7 @@ public class Mach2ExchangeBean implements Serializable {
         returnString += bid.toString() + "<br />";
       }
     }
-    readLock.unlock();
+//    readLock.unlock();
     return returnString;
   }
 
@@ -133,8 +133,8 @@ public class Mach2ExchangeBean implements Serializable {
 
     
   public String getUnfulfilledAsks(String stock) {
-    ReadLock readLock = lock.readLock();
-    readLock.lock();
+//    ReadLock readLock = lock.readLock();
+//    readLock.lock();
     
     String returnString = "";
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
@@ -143,7 +143,7 @@ public class Mach2ExchangeBean implements Serializable {
         returnString += ask.toString() + "<br />";
       }
     }
-    readLock.unlock();
+//    readLock.unlock();
     return returnString;
   }
 
@@ -161,8 +161,8 @@ public class Mach2ExchangeBean implements Serializable {
   // retrieve unfulfiled current (highest) bid for a particular stock
   // returns null if there is no unfulfiled bid for this stock
   private Bid getHighestBid(String stock) {
-    ReadLock readLock = lock.readLock();
-    readLock.lock();
+//    ReadLock readLock = lock.readLock();
+//    readLock.lock();
     
     Bid highestBid = new Bid(null, 0, null);
     for (int i = 0; i < unfulfilledBids.size(); i++) {
@@ -182,7 +182,7 @@ public class Mach2ExchangeBean implements Serializable {
     if (highestBid.getUserId() == null) {
       return null; // there's no unfulfilled bid at all!
     }
-    readLock.unlock();
+//    readLock.unlock();
     return highestBid;
   }
 
@@ -200,8 +200,8 @@ public class Mach2ExchangeBean implements Serializable {
   // retrieve unfulfiled current (lowest) ask for a particular stock
   // returns null if there is no unfulfiled asks for this stock
   private Ask getLowestAsk(String stock) {
-    ReadLock readLock = lock.readLock();
-    readLock.lock();
+//    ReadLock readLock = lock.readLock();
+//    readLock.lock();
     
     Ask lowestAsk = new Ask(null, Integer.MAX_VALUE, null);
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
@@ -221,7 +221,7 @@ public class Mach2ExchangeBean implements Serializable {
     if (lowestAsk.getUserId() == null) {
       return null; // there's no unfulfilled asks at all!
     }
-    readLock.unlock();
+//    readLock.unlock();
     return lowestAsk;
   }
 
@@ -295,8 +295,8 @@ public class Mach2ExchangeBean implements Serializable {
 
   // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
   private void logMatchedTransactions() {
-    WriteLock writeLock = lock.writeLock();
-    writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//    writeLock.lock();
     
     try {
       PrintWriter outFile = new PrintWriter(new FileWriter(MATCH_LOG_FILE, true));
@@ -313,15 +313,15 @@ public class Mach2ExchangeBean implements Serializable {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
-    } finally {
-        writeLock.unlock();
-    }
+    } //finally {
+//        writeLock.unlock();
+//    }
   }
   
   // Log to file for unsent transactions at end of day
   private void logUnsentMatchedTransactions() {
-    WriteLock writeLock = lock.writeLock();
-    writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//    writeLock.lock();
       
     try {
       PrintWriter outFile = new PrintWriter(new FileWriter(UNSENT_MATCH_LOG_FILE, false));
@@ -338,9 +338,9 @@ public class Mach2ExchangeBean implements Serializable {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
-    } finally {
-        writeLock.unlock();
-    }
+    } //finally {
+//        writeLock.unlock();
+//    }
   }
 
   // returns a string of HTML table rows code containing the list of user IDs and their remaining credits
@@ -375,9 +375,9 @@ public class Mach2ExchangeBean implements Serializable {
       return false; 
     }
     
-    WriteLock writeLock = lock.writeLock();
-    
-    writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//    
+//    writeLock.lock();
     
     String stockName = newBid.getStock();
     // try to match
@@ -425,14 +425,14 @@ public class Mach2ExchangeBean implements Serializable {
         unfulfilledBids.add(newBid);
         Collections.sort(unfulfilledBids);
     }
-    writeLock.unlock();
+//    writeLock.unlock();
     return true; // this bid is acknowledged
   }
   
   // Send all accumulated unsent transactions
   private void resendTransactions() {
-      WriteLock writeLock = lock.writeLock();
-      writeLock.lock();
+//      WriteLock writeLock = lock.writeLock();
+//      writeLock.lock();
       
       ArrayList<MatchedTransaction> unsentAgain = new ArrayList<MatchedTransaction>();
       
@@ -457,7 +457,7 @@ public class Mach2ExchangeBean implements Serializable {
       // Overwrite existing unsent transactions with any unsent transactions
       unsentTransactions = unsentAgain;
       
-      writeLock.unlock();
+//      writeLock.unlock();
   }
   
   private boolean sendTransaction(final MatchedTransaction match) throws IOException {
@@ -490,9 +490,9 @@ public class Mach2ExchangeBean implements Serializable {
 
   // call this method immediatley when a new ask (selling order) comes in
   public void placeNewAskAndAttemptMatch(Ask newAsk) {
-    WriteLock writeLock = lock.writeLock();
-
-    writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//
+//    writeLock.lock();
     
     String stockName = newAsk.getStock();
     // try to match
@@ -539,14 +539,14 @@ public class Mach2ExchangeBean implements Serializable {
         Collections.sort(unfulfilledAsks);
     }
 
-    writeLock.unlock();
+//    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   private void updateLatestPrice(MatchedTransaction m) {
-    WriteLock writeLock = lock.writeLock();
-    writeLock.lock();
+//    WriteLock writeLock = lock.writeLock();
+//    writeLock.lock();
     
     String stock = m.getStock();
     int price = m.getPrice();
@@ -558,14 +558,14 @@ public class Mach2ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       latestPriceForNtu = price;
     }
-    writeLock.unlock();
+//    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   public int getLatestPrice(String stock) {
-    ReadLock readLock = lock.readLock();
-    readLock.lock();
+//    ReadLock readLock = lock.readLock();
+//    readLock.lock();
     
     if (stock.equals("smu")) {
       return latestPriceForSmu;
@@ -574,7 +574,7 @@ public class Mach2ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       return latestPriceForNtu;
     }
-    readLock.unlock();
+//    readLock.unlock();
     return -1; // no such stock
   }
   
