@@ -12,6 +12,7 @@ and open the template in the editor.
         <script type = 'text/javascript'>
             $(document).ready(function(){
                 var  serverIP = new Array(); 
+                serverIP.push( 'http://192.168.1.210:8080')
                 var pagesDir = '';
                 var noOfChunks = 0;
                 $('#errorMsg').hide();
@@ -26,7 +27,7 @@ and open the template in the editor.
                        $('#serverIP').html('');
                        for(var i = 0 ; i < $('#noOfServers').val(); i ++){
                            ipAdd = 'http://192.168.1.'+ (i+1)+':8081';
-                           serverIP.push(ipAdd);
+                           //serverIP.push(ipAdd);
                            $('#serverIP').append('Server IP : ' + ipAdd + '<br/>')
                        }
                    }
