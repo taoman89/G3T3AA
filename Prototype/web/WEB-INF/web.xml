@@ -10,18 +10,26 @@
     </welcome-file-list>
     <env-entry>
         <env-entry-name>dbURL</env-entry-name>
-        <env-entry-type>java.lang.String</env-entry-type>        
+        <env-entry-type>java.lang.String</env-entry-type>
         <env-entry-value>jdbc:mysql://192.168.1.10:7000/exchange</env-entry-value>
     </env-entry>
     <env-entry>
         <env-entry-name>dbUser</env-entry-name>
-        <env-entry-type>java.lang.String</env-entry-type>        
+        <env-entry-type>java.lang.String</env-entry-type>
         <env-entry-value>Exchange</env-entry-value>
     </env-entry>
     <env-entry>
         <env-entry-name>dbPassword</env-entry-name>
-        <env-entry-type>java.lang.String</env-entry-type>        
+        <env-entry-type>java.lang.String</env-entry-type>
         <env-entry-value>Exchange</env-entry-value>
     </env-entry>
     <distributable/>
+    <filter>
+  <filter-name>CorsFilter</filter-name>
+    <filter-class>org.apache.catalina.filters.CorsFilter</filter-class>
+  </filter>
+  <filter-mapping> 
+    <filter-name>CorsFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
 </web-app>

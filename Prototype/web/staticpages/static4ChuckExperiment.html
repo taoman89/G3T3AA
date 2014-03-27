@@ -13,7 +13,8 @@ and open the template in the editor.
             var startTime = 
             $(document).ready(function(){
                 var  serverIP = new Array(); 
-                serverIP.push( 'http://192.168.1.210:8080/Prototype/staticpages/')
+                serverIP.push( 'http://localhost:8084/Prototype/staticpages/');
+                serverIP.push( 'http://localhost:8081/Prototype/staticpages/');
                 var pagesDir = '';
                 var noOfChunks = 0;
                 $('#errorMsg').hide();
@@ -32,7 +33,7 @@ and open the template in the editor.
             
                            $('#mainContainer').append('Part '+ (i+1) + ' div <br/>');
                            $('#mainContainer').append ('<div id="part'+(i+1)+'"></div>');
-                           var url = serverIP[0]+ noOfChunks +'Pages/static4_' + i + '.html';
+                           var url = serverIP[i%serverIP.length]+ noOfChunks +'Pages/static4_' + i + '.html';
                            var idNo = "#part"+(i+1);
                            $('#part'+(i+1)).append('<script>$("#startExp").click(function(){$.ajax("'+url+'").done(function(response){$("'+idNo+'").append(response); $("#endTimes").append((new Date()).getTime()+" , ")}); });</script\>');
 
