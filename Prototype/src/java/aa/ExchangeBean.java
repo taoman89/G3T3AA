@@ -4,17 +4,29 @@ import java.io.*;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import javax.naming.NamingException;
  
 public class ExchangeBean implements Serializable {
 
   // location of log files - change if necessary
-  private final String MATCH_LOG_FILE = "c:\\Users\\Tan Yao Guang\\matched.log";
-  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\\Users\\Tan Yao Guang\\rejected.log";
-  private final String UNSENT_MATCH_LOG_FILE = "c:\\Users\\Tan Yao Guang\\unsent_matched.log";
+  private final String MATCH_LOG_FILE = "c:\\matched.log";
+  private final String REJECTED_BUY_ORDERS_LOG_FILE = "c:\rejected.log";
+  private final String UNSENT_MATCH_LOG_FILE = "c:\\unsent_matched.log";
 
   // used to calculate remaining credit available for buyers
   private final int DAILY_CREDIT_LIMIT_FOR_BUYERS = 1000000;
+  
+  // timeout value
+  private final int TIME_OUT = 3;
 
   // used for keeping track of unfulfilled asks and bids in the system.
   // once asks or bids are matched, they must be removed from these arraylists.
@@ -31,6 +43,9 @@ public class ExchangeBean implements Serializable {
   private int latestPriceForNus = -1;
   private int latestPriceForNtu = -1;
   
+  // Declare Fair Policy Lock
+  private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
+  
   // keeps track of the remaining credit limits of each buyer. This should be
   // checked every time a buy order is submitted. Buy orders that breach the
   // credit limit should be rejected and logged
@@ -43,32 +58,45 @@ public class ExchangeBean implements Serializable {
   // this method is called once at the end of each trading day. It can be called manually, or by a timed daemon
   // this is a good chance to "clean up" everything to get ready for the next trading day
   public void endTradingDay() throws Exception{
-    // reset attributes
-    latestPriceForSmu = -1;
-    latestPriceForNus = -1;
-    latestPriceForNtu = -1;
+    WriteLock writeLock = lock.writeLock();
+    
+    try {
+        writeLock.lock();
+        
+        // reset attributes
+        latestPriceForSmu = -1;
+        latestPriceForNus = -1;
+        latestPriceForNtu = -1;
 
-    // dump all unfulfilled buy and sell orders
-    unfulfilledAsks.clear();
-    unfulfilledBids.clear();
-    
-    // Send unsent transactions again
-    resendTransactions();
-    
-    if (!unsentTransactions.isEmpty()) {
-        logUnsentMatchedTransactions();
+        // dump all unfulfilled buy and sell orders
+        unfulfilledAsks.clear();
+        unfulfilledBids.clear();
+
+        // Send unsent transactions again
+        resendTransactions();
+
+        if (!unsentTransactions.isEmpty()) {
+            logUnsentMatchedTransactions();
+        }
+
+        // reset all credit limits of users
+        //creditRemaining.clear();
+        // Reset the credit in database #SD#.
+        DbBean.executeUpdate("delete from credit");
+    } finally {
+        writeLock.unlock();
     }
-
-    // reset all credit limits of users
-    //creditRemaining.clear();
-    // Reset the credit in database #SD#.
-    DbBean.executeUpdate("delete from credit");
+      
+    
   }
 
   // returns a String of unfulfilled bids for a particular stock
   // returns an empty string if no such bid
   // bids are separated by <br> for display on HTML page
   public String getUnfulfilledBidsForDisplay(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     String returnString = "";
     for (int i = 0; i < unfulfilledBids.size(); i++) {
       Bid bid = unfulfilledBids.get(i);
@@ -76,6 +104,9 @@ public class ExchangeBean implements Serializable {
         returnString += bid.toString() + "<br />";
       }
     }
+    
+    readLock.unlock();
+    
     return returnString;
   }
 
@@ -106,6 +137,9 @@ public class ExchangeBean implements Serializable {
 
     
   public String getUnfulfilledAsks(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     String returnString = "";
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
       Ask ask = unfulfilledAsks.get(i);
@@ -113,6 +147,9 @@ public class ExchangeBean implements Serializable {
         returnString += ask.toString() + "<br />";
       }
     }
+    
+    readLock.unlock();
+    
     return returnString;
   }
 
@@ -130,6 +167,9 @@ public class ExchangeBean implements Serializable {
   // retrieve unfulfiled current (highest) bid for a particular stock
   // returns null if there is no unfulfiled bid for this stock
   private Bid getHighestBid(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     Bid highestBid = new Bid(null, 0, null);
     for (int i = 0; i < unfulfilledBids.size(); i++) {
       Bid bid = unfulfilledBids.get(i);
@@ -148,6 +188,9 @@ public class ExchangeBean implements Serializable {
     if (highestBid.getUserId() == null) {
       return null; // there's no unfulfilled bid at all!
     }
+    
+    readLock.unlock();
+    
     return highestBid;
   }
 
@@ -165,6 +208,9 @@ public class ExchangeBean implements Serializable {
   // retrieve unfulfiled current (lowest) ask for a particular stock
   // returns null if there is no unfulfiled asks for this stock
   private Ask getLowestAsk(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     Ask lowestAsk = new Ask(null, Integer.MAX_VALUE, null);
     for (int i = 0; i < unfulfilledAsks.size(); i++) {
       Ask ask = unfulfilledAsks.get(i);
@@ -183,6 +229,9 @@ public class ExchangeBean implements Serializable {
     if (lowestAsk.getUserId() == null) {
       return null; // there's no unfulfilled asks at all!
     }
+    
+    readLock.unlock();
+    
     return lowestAsk;
   }
 
@@ -256,6 +305,9 @@ public class ExchangeBean implements Serializable {
 
   // call this to append all matched transactions in matchedTransactions to log file and clear matchedTransactions
   private void logMatchedTransactions() {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+    
     try {
       PrintWriter outFile = new PrintWriter(new FileWriter(MATCH_LOG_FILE, true));
       for (MatchedTransaction m : matchedTransactions) {
@@ -271,13 +323,18 @@ public class ExchangeBean implements Serializable {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
+    } finally {
+        writeLock.unlock();
     }
   }
   
   // Log to file for unsent transactions at end of day
   private void logUnsentMatchedTransactions() {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+      
     try {
-      PrintWriter outFile = new PrintWriter(new FileWriter(UNSENT_MATCH_LOG_FILE, true));
+      PrintWriter outFile = new PrintWriter(new FileWriter(UNSENT_MATCH_LOG_FILE, false));
       for (MatchedTransaction m : unsentTransactions) {
         outFile.append(m.toString() + "\n");
       }
@@ -291,6 +348,8 @@ public class ExchangeBean implements Serializable {
       // Think about what should happen here...
       System.out.println("EXCEPTION: Cannot write to file");
       e.printStackTrace();
+    } finally {
+        writeLock.unlock();
     }
   }
 
@@ -325,7 +384,11 @@ public class ExchangeBean implements Serializable {
     if (!okToContinue){
       return false; 
     }
-
+    
+    WriteLock writeLock = lock.writeLock();
+    
+    writeLock.lock();
+    
     // step 1: insert new bid into unfulfilledBids
     unfulfilledBids.add(newBid);
 
@@ -359,51 +422,98 @@ public class ExchangeBean implements Serializable {
 
       // to be included here: inform Back Office Server of match
       // to be done in v1.0
-      
-      // Send all existing unsent transactions first
-      resendTransactions();
-      
+
+//      // Send all existing unsent transactions first
+      //resendTransactions();
+
       // Try sending this current matched transaction
+      boolean status = false;
+
       try {
-          boolean status = sendTransaction(match);
+          status = sendTransaction(match);
       } catch (Exception e) {
+
+      }
+
+      if (!status) {
           unsentTransactions.add(match);
       }
-      
+
       updateLatestPrice(match);
       logMatchedTransactions();
     }
-
+        
+    writeLock.unlock();
+    
     return true; // this bid is acknowledged
   }
   
   // Send all accumulated unsent transactions
   private void resendTransactions() {
+      WriteLock writeLock = lock.writeLock();
+      writeLock.lock();
+      
       ArrayList<MatchedTransaction> unsentAgain = new ArrayList<MatchedTransaction>();
       
       // Loop through all unsent transactions
       for (int i = 0; i < unsentTransactions.size(); i++) {
           MatchedTransaction m = unsentTransactions.get(i);
           
+          boolean status = false;
+          
           // Try sending again
           try {
-              boolean status = sendTransaction(m);
+              status = sendTransaction(m);
           } catch (Exception e) {
+              
+          }
+          
+          if (!status) {
               unsentAgain.add(m);
           }
       }
       
       // Overwrite existing unsent transactions with any unsent transactions
       unsentTransactions = unsentAgain;
+      
+      writeLock.unlock();
   }
   
-  private boolean sendTransaction(MatchedTransaction match) throws IOException {
-      boolean status = sendToBackOffice("stock: " + match.getStock() + ", amt: " + match.getPrice() + ", bidder userId: " + match.getBuyerId() + ", seller userId: " + match.getSellerId() + ", date: " + match.getDate());
-      return status;
+  private boolean sendTransaction(final MatchedTransaction match) throws IOException {
+      ExecutorService service = Executors.newSingleThreadExecutor();
+      
+      try {
+          Runnable r = new Runnable() {
+              @Override
+              public void run() {
+                  sendToBackOffice("stock: " + match.getStock()
+                    + ", amt: " + match.getPrice() + ", bidder userId: " + match.getBuyerId()
+                    + ", seller userId: " + match.getSellerId() + ", date: " + match.getDate());
+              }
+          };
+          
+          Future<?> f = service.submit(r);
+          
+          f.get(TIME_OUT, TimeUnit.SECONDS);  // attempt the task for three seconds
+          
+      } catch (InterruptedException e) {
+          return false;
+      } catch (TimeoutException e) {
+          return false;
+      } catch (ExecutionException e) {
+          return false;
+      }
+      
+      return true;
   }
 
   // call this method immediatley when a new ask (selling order) comes in
   public void placeNewAskAndAttemptMatch(Ask newAsk) {
+      
+    WriteLock writeLock = lock.writeLock();
+
+    writeLock.lock();
+        
     // step 1: insert new ask into unfulfilledAsks
     unfulfilledAsks.add(newAsk);
 
@@ -429,33 +539,43 @@ public class ExchangeBean implements Serializable {
     // step 5: check if there is a match.
     // A match happens if the lowest ask is <= highest bid
     if (lowestAsk.getPrice() <= highestBid.getPrice()) {
-      // a match is found!
-      unfulfilledBids.remove(highestBid);
-      unfulfilledAsks.remove(lowestAsk);
-      // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
-      MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
-      matchedTransactions.add(match);
+        // a match is found!
+        unfulfilledBids.remove(highestBid);
+        unfulfilledAsks.remove(lowestAsk);
+        // this is a SELLING trade - the transaction happens at the lowest ask's timestamp, and the transaction price happens at the highest bid
+        MatchedTransaction match = new MatchedTransaction(highestBid, lowestAsk, lowestAsk.getDate(), highestBid.getPrice());
+        matchedTransactions.add(match);
 
-      // to be included here: inform Back Office Server of match
-      // to be done in v1.0
-      // Send all existing unsent transactions first
-      resendTransactions();
-      
-      // Try sending this current matched transaction
-      try {
-          boolean status = sendTransaction(match);
-      } catch (Exception e) {
-          unsentTransactions.add(match);
-      }
-      
-      updateLatestPrice(match);
-      logMatchedTransactions();
+        // to be included here: inform Back Office Server of match
+        // to be done in v1.0
+        // Send all existing unsent transactions first
+        //resendTransactions();
+
+        // Try sending this current matched transaction
+        boolean status = false;
+
+        try {
+            status = sendTransaction(match);
+        } catch (Exception e) {
+
+        }
+
+        if (!status) {
+            unsentTransactions.add(match);
+        }
+
+        updateLatestPrice(match);
+        logMatchedTransactions();
     }
+    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   private void updateLatestPrice(MatchedTransaction m) {
+    WriteLock writeLock = lock.writeLock();
+    writeLock.lock();
+    
     String stock = m.getStock();
     int price = m.getPrice();
     // update the correct attribute
@@ -466,11 +586,16 @@ public class ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       latestPriceForNtu = price;
     }
+    
+    writeLock.unlock();
   }
 
   // updates either latestPriceForSmu, latestPriceForNus or latestPriceForNtu
   // based on the MatchedTransaction object passed in
   public int getLatestPrice(String stock) {
+    ReadLock readLock = lock.readLock();
+    readLock.lock();
+    
     if (stock.equals("smu")) {
       return latestPriceForSmu;
     } else if (stock.equals("nus")) {
@@ -478,6 +603,9 @@ public class ExchangeBean implements Serializable {
     } else if (stock.equals("ntu")) {
       return latestPriceForNtu;
     }
+    
+    readLock.unlock();
+    
     return -1; // no such stock
   }
   
